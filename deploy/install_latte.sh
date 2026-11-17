@@ -62,6 +62,10 @@ if [[ ! "$device" =~ ^/dev/tty(USB|ACM)[0-9]+$ ]]; then
     echo "Perangkat harus USB-serial ttyUSB* atau ttyACM*: $device" >&2
     exit 1
 fi
+if [[ -e /dev/ais && "$(realpath -e -- /dev/ais)" != "$device" ]]; then
+    echo "/dev/ais sudah digunakan oleh perangkat USB-serial lain." >&2
+    exit 1
+fi
 
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 app_dir=/opt/ais-jrc

@@ -65,17 +65,20 @@ password wajib diisi saat MQTT diaktifkan; keduanya tidak dicetak di terminal.
 
 ## Instalasi di Latte (Debian/Ubuntu)
 
-Pasang perangkat USB-serial AIS, lalu jalankan di Latte dari direktori hasil
-clone repo. Gunakan IP statis atau nama DNS Latte yang benar-benar dapat
-diakses penerima data (nama ini dimasukkan ke sertifikat TLS):
+Pasang perangkat USB-serial AIS, lalu jalankan di Latte. Gunakan IP statis atau
+nama DNS Latte yang benar-benar dapat diakses penerima data (nama ini
+dimasukkan ke sertifikat TLS):
 
 ```sh
-sudo bash deploy/install_latte.sh --broker-host 192.168.1.50 \
-    --device /dev/serial/by-id/usb-NAMA_PERANGKAT
+git clone https://github.com/ArifMunawarr/ais_jrc.git
+cd ais_jrc
+sudo bash deploy/install_latte.sh --broker-host 192.168.1.50
 ```
 
 `--device` opsional jika hanya satu USB-serial terpasang di
-`/dev/serial/by-id/`. Installer akan meminta password akun `ais_serial` secara
+`/dev/serial/by-id/`. Jika ada beberapa perangkat atau tidak ada symlink di
+direktori itu, tambahkan `--device /dev/ttyUSB0` (sesuaikan portnya). Installer
+akan meminta password akun `ais_serial` secara
 tersembunyi di terminal; masukkan password yang sudah disepakati. Password
 tidak perlu dimasukkan ke perintah, repo, atau file konfigurasi contoh.
 Installer ini harus dijalankan **di Latte**, bukan di komputer pengembang.
