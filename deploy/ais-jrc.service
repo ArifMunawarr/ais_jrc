@@ -1,0 +1,24 @@
+[Unit]
+Description=AIS JRC serial reader and MQTT publisher
+Wants=network-online.target
+After=network-online.target mosquitto.service
+Requires=mosquitto.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=ais-jrc
+Group=ais-jrc
+SupplementaryGroups=dialout
+WorkingDirectory=/opt/ais-jrc
+EnvironmentFile=/etc/ais-jrc/ais.env
+ExecStart=/opt/ais-jrc/.venv/bin/python /opt/ais-jrc/decode.py --port /dev/ais --baudrate 38400
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
