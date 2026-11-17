@@ -78,9 +78,10 @@ sudo bash deploy/install_latte.sh --broker-host 192.168.1.50
 `--device` opsional jika hanya satu USB-serial terpasang di
 `/dev/serial/by-id/`. Jika ada beberapa perangkat atau tidak ada symlink di
 direktori itu, tambahkan `--device /dev/ttyUSB0` (sesuaikan portnya). Installer
-akan meminta password akun `ais_serial` secara
-tersembunyi di terminal; masukkan password yang sudah disepakati. Password
-tidak perlu dimasukkan ke perintah, repo, atau file konfigurasi contoh.
+meminta dua password secara tersembunyi: untuk publisher `ais_serial` dan
+subscriber baca-saja `ais_reader`. Masukkan password masing-masing yang sudah
+disepakati saat diminta. Keduanya tidak perlu ditulis di perintah, repo,
+atau file konfigurasi contoh.
 Installer ini harus dijalankan **di Latte**, bukan di komputer pengembang.
 
 Installer memasang Mosquitto dengan autentikasi dan TLS pada port `8883`,
@@ -113,9 +114,10 @@ baru untuk memperbarui sertifikat server dengan CA yang sama.
 ## Untuk pihak yang subscribe
 
 Berikan alamat broker, port, pilihan TLS, dan daftar tiga topik di atas kepada
-pihak penerima data. Buat akun broker **terpisah dengan izin baca saja** untuk
-subscriber; akun `ais_serial` dipakai oleh publisher. Di Latte, buat akun
-subscriber baru (password diminta oleh skrip):
+pihak penerima data. Installer sudah membuat akun `ais_reader` dengan izin
+baca saja untuk MQTT Explorer atau aplikasi penerima; `ais_serial` hanya untuk
+publisher. Jika perlu akun baca-saja tambahan untuk pihak lain, jalankan di
+Latte (password diminta oleh skrip):
 
 ```sh
 sudo bash deploy/add_subscriber.sh penerima_ais

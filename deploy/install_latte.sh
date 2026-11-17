@@ -9,7 +9,7 @@ Usage: sudo bash deploy/install_latte.sh --broker-host IP_OR_DNS [--device /dev/
 Requires Debian/Ubuntu with systemd, udev, and an attached USB-serial AIS device.
 --broker-host is the address subscribers will use to reach this Latte.
 If --device is omitted, exactly one /dev/serial/by-id/* device must exist.
-The installer prompts for the ais_serial MQTT password; it never stores it in Git.
+The installer prompts for ais_serial and ais_reader passwords; it never stores them in Git.
 EOF
 }
 
@@ -198,6 +198,12 @@ if [[ -z "$mqtt_password" || "$mqtt_password" == *"'"* ||
     echo "Password kosong atau mengandung karakter yang tidak didukung di EnvironmentFile." >&2
     exit 1
 fi
+read -r -s -p "Password subscriber untuk ais_reader: " reader_password
+printf '\n'
+if [[ -z "$reader_password" ]]; then
+    echo "Password ais_reader tidak boleh kosong." >&2
+    exit 1
+fi
 if [[ -e "$passwd_file" ]]; then
     printf '%s\n%s\n' "$mqtt_password" "$mqtt_password" |
         mosquitto_passwd "$passwd_file" ais_serial >/dev/null
@@ -205,6 +211,9 @@ else
     printf '%s\n%s\n' "$mqtt_password" "$mqtt_password" |
         mosquitto_passwd -c "$passwd_file" ais_serial >/dev/null
 fi
+printf '%s\n%s\n' "$reader_password" "$reader_password" |
+    mosquitto_passwd "$passwd_file" ais_reader >/dev/null
+unset reader_password
 chown root:mosquitto "$passwd_file"
 chmod 0640 "$passwd_file"
 
@@ -215,6 +224,10 @@ topic write ais/aivdm/raw
 topic write ais/aivdo/position
 topic write ais/messages/decoded
 EOF
+fi
+if ! grep -Fxq "user ais_reader" "$acl_file"; then
+    printf '\nuser ais_reader\ntopic read ais/aivdm/raw\ntopic read ais/aivdo/position\ntopic read ais/messages/decoded\n' \
+        >> "$acl_file"
 fi
 chown root:mosquitto "$acl_file"
 chmod 0640 "$acl_file"
