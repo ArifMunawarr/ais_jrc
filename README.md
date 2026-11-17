@@ -8,8 +8,8 @@ terminal, dan (jika `MQTT_HOST` diatur) mengirim ke MQTT.
 - `serial_ais.py`: pembaca serial sederhana, menampilkan data mentah tanpa decode/MQTT.
 - `decode.py`: pembaca serial, penggabungan fragmen, validasi posisi, filter,
   dan hasil decode AIS di terminal.
-- `mqtt_publisher.py`: konfigurasi broker (termasuk username/password dan TLS),
-  koneksi, format data posisi, dan publish ketiga topik.
+- `mqtt_publisher.py`: konfigurasi broker (termasuk username/password), koneksi,
+  format data posisi, dan publish ketiga topik. TLS tersedia untuk broker lain.
 - `deploy/install_latte.sh` dan `deploy/ais-jrc.service`: installer Linux
   dan layanan yang berjalan otomatis saat boot.
 - `deploy/add_subscriber.sh`: pembuatan akun broker baca-saja untuk penerima data.
@@ -66,8 +66,7 @@ password wajib diisi saat MQTT diaktifkan; keduanya tidak dicetak di terminal.
 ## Instalasi di Latte (Debian/Ubuntu)
 
 Pasang perangkat USB-serial AIS, lalu jalankan di Latte. Gunakan IP statis atau
-nama DNS Latte yang benar-benar dapat diakses penerima data (nama ini
-dimasukkan ke sertifikat TLS):
+nama DNS Latte yang benar-benar dapat diakses penerima data:
 
 ```sh
 git clone https://github.com/ArifMunawarr/ais_jrc.git
@@ -84,13 +83,16 @@ disepakati saat diminta. Keduanya tidak perlu ditulis di perintah, repo,
 atau file konfigurasi contoh.
 Installer ini harus dijalankan **di Latte**, bukan di komputer pengembang.
 
-Installer memasang Mosquitto dengan autentikasi dan TLS pada port `8883`,
-membuat sertifikat CA lokal, menyiapkan virtualenv di `/opt/ais-jrc`, dan
-mendaftarkan `ais-jrc.service`. Layanan memakai broker lokal (`localhost:8883`).
+Installer memasang Mosquitto dengan autentikasi pada port LAN `1883`,
+menyiapkan virtualenv di `/opt/ais-jrc`, dan mendaftarkan `ais-jrc.service`.
+Layanan memakai broker lokal (`localhost:1883`).
 Kredensial layanan disimpan di `/etc/ais-jrc/ais.env` (hanya root dan grup
 `ais-jrc` yang dapat membaca); password broker disimpan sebagai hash oleh
 Mosquitto. Broker tidak mengizinkan klien anonim. Jika mengulang instalasi,
 masukkan password yang sama atau bagikan password baru kepada pihak terkait.
+Jika sebelumnya pernah memasang konfigurasi TLS di `8883`, jalankan lagi
+installer agar broker pindah ke `1883`, lalu perbarui pengaturan subscriber.
+Sertifikat lama tidak dihapus otomatis.
 
 Aturan udev installer membuat `/dev/ais` untuk perangkat yang dipilih, dengan
 izin `dialout:0660`. Jika adapter memiliki serial unik, aturan mengikuti
@@ -104,16 +106,19 @@ systemctl status mosquitto ais-jrc
 journalctl -u ais-jrc -f
 ```
 
-Port `8883/tcp` perlu diizinkan di firewall **hanya untuk jaringan/klien yang
-dipercaya**, tidak dibuka ke internet publik tanpa perlindungan tambahan.
-Sertifikat CA publik untuk subscriber ada di `/etc/ais-jrc/ca.crt`; kirim
-berkas tersebut dan verifikasi sidik jari SHA-256 melalui jalur tepercaya.
-Jika IP/nama broker berubah, jalankan lagi installer dengan `--broker-host`
-baru untuk memperbarui sertifikat server dengan CA yang sama.
+Koneksi ini **tidak memakai TLS**: tidak memerlukan CA/sertifikat, tetapi
+username, password, dan pesan MQTT dapat terbaca oleh pihak lain di jaringan.
+TLS sebenarnya juga bisa dipakai tanpa internet; mode ini dipilih agar tidak
+perlu mengelola sertifikat di setiap subscriber. Gunakan hanya pada LAN
+tepercaya. Broker mendengarkan pada semua antarmuka dan installer tidak
+mengatur firewall: batasi `1883/tcp` untuk IP penerima yang diizinkan,
+jangan teruskan port ke internet, dan pisahkan jaringan AIS dari Wi-Fi publik.
+Jika kelak melewati jaringan tidak tepercaya, aktifkan kembali TLS dengan
+sertifikat yang dapat divalidasi.
 
 ## Untuk pihak yang subscribe
 
-Berikan alamat broker, port, pilihan TLS, dan daftar tiga topik di atas kepada
+Berikan alamat broker, port, dan daftar tiga topik di atas kepada
 pihak penerima data. Installer sudah membuat akun `ais_reader` dengan izin
 baca saja untuk MQTT Explorer atau aplikasi penerima; `ais_serial` hanya untuk
 publisher. Jika perlu akun baca-saja tambahan untuk pihak lain, jalankan di
@@ -124,10 +129,14 @@ sudo bash deploy/add_subscriber.sh penerima_ais
 ```
 
 ACL broker mengizinkan publisher menulis tiga topik dan subscriber hanya
-membaca topik AIS. Untuk penerima, atur `MQTT_HOST` ke IP/nama yang digunakan
-di `--broker-host`, `MQTT_PORT=8883`, `MQTT_TLS=1`,
-`MQTT_CA_CERTS=/lokasi/ca.crt`, serta `MQTT_SUB_USERNAME` dan
-`MQTT_SUB_PASSWORD` dari akun baca-saja. Contoh dengan `paho-mqtt`:
+membaca topik AIS. Di MQTT Explorer dari Mac: host = IP/nama Latte yang
+digunakan di `--broker-host`, port = `1883`, username = `ais_reader`,
+password = password subscriber yang dimasukkan saat instalasi, dan
+TLS/encryption dinonaktifkan (tidak ada sertifikat yang perlu divalidasi).
+
+Untuk aplikasi penerima, atur `MQTT_HOST`, `MQTT_PORT=1883`,
+`MQTT_SUB_USERNAME`, dan `MQTT_SUB_PASSWORD` dari akun baca-saja. Contoh dengan
+`paho-mqtt`:
 
 ```python
 import os
@@ -137,9 +146,6 @@ client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 client.username_pw_set(
     os.environ["MQTT_SUB_USERNAME"], os.environ["MQTT_SUB_PASSWORD"]
 )
-if os.getenv("MQTT_TLS") == "1":
-    client.tls_set(ca_certs=os.environ["MQTT_CA_CERTS"])
-
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code.is_failure:
         print(f"Koneksi MQTT ditolak: {reason_code}")

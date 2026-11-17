@@ -42,9 +42,6 @@ fi
 
 if [[ "$broker_host" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     python3 -c 'import ipaddress, sys; ipaddress.IPv4Address(sys.argv[1])' "$broker_host"
-    san="IP:$broker_host"
-else
-    san="DNS:$broker_host"
 fi
 
 if [[ -z "$device" ]]; then
@@ -74,15 +71,11 @@ broker_dir=/etc/mosquitto/ais-jrc
 broker_conf=/etc/mosquitto/conf.d/ais-jrc.conf
 passwd_file="$broker_dir/passwd"
 acl_file="$broker_dir/acl"
-ca_cert="$broker_dir/ca.crt"
-ca_key="$broker_dir/ca.key"
-server_cert="$broker_dir/server.crt"
-server_key="$broker_dir/server.key"
 
 echo "Memasang paket sistem dan dependensi Python..."
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    mosquitto python3 python3-venv udev openssl
+    mosquitto python3 python3-venv udev
 
 if [[ ! -f /etc/mosquitto/mosquitto.conf ]] ||
         ! grep -Eq '^[[:space:]]*include_dir[[:space:]]+/etc/mosquitto/conf.d[[:space:]]*$' \
@@ -100,7 +93,8 @@ for config in "${other_configs[@]}"; do
     fi
 done
 if [[ ! -e "$broker_conf" ]] &&
-        { [[ -e "$passwd_file" ]] || [[ -e "$acl_file" ]] || [[ -e "$ca_key" ]]; }; then
+        { [[ -e "$passwd_file" ]] || [[ -e "$acl_file" ]] ||
+          [[ -e "$broker_dir/ca.key" ]]; }; then
     echo "Berkas broker sudah ada tanpa konfigurasi installer; periksa manual." >&2
     exit 1
 fi
@@ -158,37 +152,6 @@ umask 077
 
 install -d -m 0750 -o root -g ais-jrc "$config_dir"
 install -d -m 0750 -o root -g mosquitto "$broker_dir"
-if [[ ! -e "$ca_cert" || ! -e "$ca_key" ]]; then
-    if [[ -e "$ca_cert" || -e "$ca_key" ]]; then
-        echo "Pasangan CA broker tidak lengkap; tidak menimpa kunci yang ada." >&2
-        exit 1
-    fi
-    openssl req -x509 -newkey rsa:3072 -nodes -sha256 -days 3650 \
-        -subj "/CN=AIS JRC local CA" \
-        -addext "basicConstraints=critical,CA:TRUE" \
-        -addext "keyUsage=critical,keyCertSign,cRLSign" \
-        -keyout "$ca_key" -out "$ca_cert" >/dev/null 2>&1
-fi
-
-# Keep the same CA on reinstall, so subscribers do not need a new trust file.
-if [[ ! -e "$server_cert" || ! -e "$server_key" ]] ||
-        ! openssl x509 -in "$server_cert" -noout -ext subjectAltName | grep -Fq "$san" ||
-        ! openssl x509 -checkend 2592000 -noout -in "$server_cert" >/dev/null; then
-    openssl req -new -newkey rsa:3072 -nodes -sha256 \
-        -subj "/CN=$broker_host" -keyout "$server_key" \
-        -out "$broker_dir/server.csr" >/dev/null 2>&1
-    printf 'subjectAltName=DNS:localhost,IP:127.0.0.1,%s\nextendedKeyUsage=serverAuth\nkeyUsage=digitalSignature,keyEncipherment\nbasicConstraints=CA:FALSE\n' \
-        "$san" > "$broker_dir/server.ext"
-    openssl x509 -req -in "$broker_dir/server.csr" -CA "$ca_cert" \
-        -CAkey "$ca_key" -CAcreateserial -out "$server_cert" \
-        -days 825 -sha256 -extfile "$broker_dir/server.ext" >/dev/null 2>&1
-fi
-chown root:mosquitto "$server_key" "$server_cert" "$ca_cert"
-chmod 0640 "$server_key"
-chmod 0644 "$server_cert" "$ca_cert"
-chown root:root "$ca_key"
-chmod 0600 "$ca_key"
-install -m 0644 "$ca_cert" "$config_dir/ca.crt"
 
 read -r -s -p "Password broker untuk ais_serial: " mqtt_password
 printf '\n'
@@ -233,19 +196,17 @@ chown root:mosquitto "$acl_file"
 chmod 0640 "$acl_file"
 
 cat > "$broker_conf" <<EOF
-listener 8883 0.0.0.0
+listener 1883 0.0.0.0
 allow_anonymous false
 password_file $passwd_file
 acl_file $acl_file
-certfile $server_cert
-keyfile $server_key
 EOF
 chmod 0644 "$broker_conf"
 
 env_tmp="$(mktemp "$config_dir/ais.env.XXXXXX")"
 trap 'rm -f -- "$env_tmp"' EXIT
-printf "MQTT_HOST=localhost\nMQTT_PORT=8883\nMQTT_TLS=1\nMQTT_CA_CERTS=%s\nMQTT_USERNAME=ais_serial\nMQTT_PASSWORD='%s'\n" \
-    "$config_dir/ca.crt" "$mqtt_password" > "$env_tmp"
+printf "MQTT_HOST=localhost\nMQTT_PORT=1883\nMQTT_TLS=0\nMQTT_USERNAME=ais_serial\nMQTT_PASSWORD='%s'\n" \
+    "$mqtt_password" > "$env_tmp"
 install -m 0640 -o root -g ais-jrc "$env_tmp" "$config_dir/ais.env"
 rm -f -- "$env_tmp"
 trap - EXIT
@@ -268,6 +229,6 @@ systemctl enable --now mosquitto.service
 systemctl restart mosquitto.service
 systemctl enable --now ais-jrc.service
 systemctl restart ais-jrc.service
-echo "Selesai: /dev/ais -> $device; broker TLS: $broker_host:8883"
-echo "Bagikan $config_dir/ca.crt (sertifikat publik) ke subscriber."
+echo "Selesai: /dev/ais -> $device; broker MQTT: $broker_host:1883"
+echo "Tanpa TLS, listener di semua antarmuka: batasi port 1883 ke LAN tepercaya."
 echo "Status: systemctl status ais-jrc mosquitto"
