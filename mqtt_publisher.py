@@ -8,7 +8,7 @@ import paho.mqtt.client as mqtt
 
 RAW_TOPIC = "ais/aivdm/raw"
 POSITION_TOPIC = "ais/aivdo/position"
-DECODED_TOPIC = "ais/messages/decoded"
+DECODED_TOPIC = "ais/aivdm/decoded"
 
 
 def add_mqtt_arguments(parser):

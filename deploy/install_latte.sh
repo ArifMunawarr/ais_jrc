@@ -185,11 +185,11 @@ if [[ ! -e "$acl_file" ]]; then
 user ais_serial
 topic write ais/aivdm/raw
 topic write ais/aivdo/position
-topic write ais/messages/decoded
+topic write ais/aivdm/decoded
 EOF
 fi
 if ! grep -Fxq "user ais_reader" "$acl_file"; then
-    printf '\nuser ais_reader\ntopic read ais/aivdm/raw\ntopic read ais/aivdo/position\ntopic read ais/messages/decoded\n' \
+    printf '\nuser ais_reader\ntopic read ais/aivdm/raw\ntopic read ais/aivdo/position\ntopic read ais/aivdm/decoded\n' \
         >> "$acl_file"
 fi
 chown root:mosquitto "$acl_file"

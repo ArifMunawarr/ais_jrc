@@ -32,7 +32,7 @@ chown root:mosquitto "$passwd_file"
 chmod 0640 "$passwd_file"
 
 if ! grep -Fxq "user $username" "$acl_file"; then
-    printf '\nuser %s\ntopic read ais/aivdm/raw\ntopic read ais/aivdo/position\ntopic read ais/messages/decoded\n' \
+    printf '\nuser %s\ntopic read ais/aivdm/raw\ntopic read ais/aivdo/position\ntopic read ais/aivdm/decoded\n' \
         "$username" >> "$acl_file"
 fi
 chown root:mosquitto "$acl_file"

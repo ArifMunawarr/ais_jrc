@@ -83,14 +83,14 @@ class DecodeMqttTests(unittest.TestCase):
         own = [json.loads(payload) for topic, payload, qos in messages
                if topic == "ais/aivdo/position"]
         decoded = [json.loads(payload) for topic, payload, qos in messages
-                   if topic == "ais/messages/decoded"]
+                   if topic == "ais/aivdm/decoded"]
 
         self.assertEqual(raw, vdm + multipart)
         self.assertEqual(len(own), 1)
         self.assertEqual((own[0]["lat"], own[0]["lon"]), (-6.2, 106.8))
         self.assertEqual([item["message_type"] for item in decoded], [1, 5])
         self.assertEqual({topic for topic, _, _ in messages}, {
-            "ais/aivdm/raw", "ais/aivdo/position", "ais/messages/decoded"
+            "ais/aivdm/raw", "ais/aivdo/position", "ais/aivdm/decoded"
         })
         self.assertTrue(all(qos == 1 for _, _, qos in messages))
 
