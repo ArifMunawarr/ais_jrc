@@ -100,11 +100,16 @@ class DecodeMqttTests(unittest.TestCase):
             talker_id="AIVDO"
         )
         messages = self.run_reader(vdo)
+        self.assertEqual(messages, [])
+
+    def test_vdo_does_not_publish_decoded(self):
+        vdo = encode_dict(
+            {"type": 1, "mmsi": 123456789, "lat": -6.2, "lon": 106.8},
+            talker_id="AIVDO"
+        )
+        messages = self.run_reader(vdo)
         self.assertEqual([topic for topic, _, _ in messages],
-                         [mqtt_publisher.DECODED_TOPIC])
-        data = json.loads(messages[0][1])["data"]
-        self.assertNotIn("lat", data)
-        self.assertNotIn("lon", data)
+                         ["ais/aivdo/position"])
 
     def test_raw_vdm_is_published_even_with_vdo_filter(self):
         vdm = encode_dict({"type": 1, "mmsi": 123456789}, talker_id="AIVDM")

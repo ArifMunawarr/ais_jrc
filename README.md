@@ -23,7 +23,7 @@ Latte; tidak ada sertifikat TLS yang perlu diatur untuk pemakaian LAN.
 | --- | --- |
 | `ais/aivdm/raw` | Satu kalimat NMEA `!AIVDM,...` apa adanya per fragmen |
 | `ais/aivdo/position` | JSON `{"received_at":"...","mmsi":123456789,"lat":-6.2,"lon":106.8}` dari AIVDO dengan posisi valid |
-| `ais/messages/decoded` | JSON hasil decode AIVDM/AIVDO lengkap |
+| `ais/messages/decoded` | JSON hasil decode AIVDM lengkap |
 
 Semua publish memakai QoS 1, tanpa retained message. Subscriber hanya menerima
 pesan yang dikirim setelah ia tersambung; broker tidak menyimpan riwayat.
@@ -200,7 +200,8 @@ python3 decode.py --port /dev/ttyUSB0 --baudrate 38400
 
 Filter output decode: `--type`, `--mmsi`, `--msg-type`, `--position-only`, dan
 `--bbox`. `ais/aivdm/raw` dan `ais/aivdo/position` tetap dipublish tanpa filter;
-filter hanya berlaku untuk output terminal dan `ais/messages/decoded`. TLS tetap
+filter hanya berlaku untuk output terminal dan `ais/messages/decoded`. AIVDO
+tidak dipublish ke `ais/messages/decoded` agar tidak ganda dengan topik posisi. TLS tetap
 didukung untuk broker lain dengan `MQTT_TLS=1`, `MQTT_PORT=8883`, dan
 `MQTT_CA_CERTS=/lokasi/ca.crt`.
 

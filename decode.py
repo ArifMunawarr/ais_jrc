@@ -149,7 +149,8 @@ def handle_message(parts, source, args, publisher):
 
         payload = json.dumps(result, ensure_ascii=False, default=str)
         print(payload, flush=True)
-        publisher.publish_decoded(payload)
+        if source == "VDM":
+            publisher.publish_decoded(payload)
 
     except Exception as e:
         print(f"[DECODE ERROR] {e}", flush=True)
